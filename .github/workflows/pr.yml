@@ -1,0 +1,42 @@
+name: Submission
+on: pull_request
+jobs: 
+  one:
+    name: Update Challenge Status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+      - uses: actions/cache@v2
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gems-
+      - name: Setup SQLite-3
+        run: sudo apt-get -yqq install libsqlite3-dev
+      - name: install-dependencies
+        run: |
+          gem install bundler
+          bundle config path vendor/bundle
+          bundle install --jobs 4 --retry 3
+          yarn install --check-files
+      - id: rspec-tests
+        continue-on-error: true
+        env: 
+          RAILS_ENV: test
+        run: |
+          bundler exec rails db:migrate
+          bin/rspec
+      - name: Tests Failed
+        if: steps.rspec-tests.outcome == 'failure'
+        uses: wei/curl@v1 
+        with:
+          args: '-X PATCH -H ''Authorization: Token ${{ secrets.ACTION_TOKEN }}'' ''${{ secrets.ACTION_URL }}?student=${{ github.actor }}&challenge=${{ github.repository }}&status=attempted'''
+      - name: Tests Success
+        if: steps.rspec-tests.outcome == 'success'
+        uses: wei/curl@v1 
+        with:
+          args: '-X PATCH -H ''Authorization: Token ${{ secrets.ACTION_TOKEN }}'' ''${{ secrets.ACTION_URL }}?student=${{ github.actor }}&challenge=${{ github.repository }}&status=completed'''

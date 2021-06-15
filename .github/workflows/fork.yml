@@ -1,0 +1,11 @@
+name: New Fork
+on: fork
+jobs: 
+  # Updates server when a new fork is made.
+  fork-update:
+    name: Fork Status Update
+    runs-on: ubuntu-latest
+    steps:
+    - uses: wei/curl@v1 
+      with:
+        args: '-X PATCH -H ''Authorization: Token ${{ secrets.ACTION_TOKEN }}'' ''${{ secrets.ACTION_URL }}?student=${{ github.actor }}&challenge=${{ github.repository }}&status=forked'''
